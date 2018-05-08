@@ -57,7 +57,7 @@ public class GitOperationUtils {
 	 * @throws GitAPIException
 	 */
 	public void getLogInfo() throws IOException, NoHeadException, GitAPIException{
-		Git git = Git.open(new File("C:/Users/Administrator/git/GapsDemo/.git"));
+		Git git = Git.open(new File(openJGitCookBookRepository().getDirectory().getParent()+"/.git"));
 		Iterable<RevCommit> gitLog = git.log().call();
 		for(RevCommit commit : gitLog){
 			String version = commit.getName();
@@ -144,7 +144,7 @@ public class GitOperationUtils {
 	 * @throws IOException
 	 */
 	public void getRevTagInfo(String version) throws IOException{
-		Git git = Git.open(new File("C:/Users/Administrator/git/GapsDemo/.git"));
+		Git git = Git.open(new File(openJGitCookBookRepository().getDirectory().getParent()+"/.git"));
 		Repository repository = git.getRepository();
 		Map<String, Ref> tags = repository.getTags();
 		RevWalk revWalk = new RevWalk(repository);
@@ -173,7 +173,7 @@ public class GitOperationUtils {
 	public static void main(String[] args){
 		GitOperationUtils utils = new GitOperationUtils();
 		try {
-			System.out.println(utils.openJGitCookBookRepository().getDirectory().getAbsolutePath());
+			System.out.println(utils.openJGitCookBookRepository().getDirectory().getParent());
 			System.out.println("=================================================================");
 			//String absolutePath = utils.createNewRepository().getDirectory().getAbsolutePath();
 			//System.out.println(absolutePath);
@@ -182,7 +182,7 @@ public class GitOperationUtils {
 			System.out.println("=================================================================");
 			//System.out.println(utils.getSpecifiedVersionFile("f07afa28aa7c5f534b69f32fda9434737783dd8c"));
 			//utils.getSpecifiedFileVersionInfo("gaps.demo/src/main/resources/metadatas/basetable.table");
-			utils.getRevTagInfo("f07afa28aa7c5f534b69f32fda9434737783dd8c");
+			utils.getRevTagInfo("c8c7669ec9b251cf3506ba08b50d4f555ce3e877");
 			System.out.println("=================================================================");
 			
 		} catch (IOException e) {
