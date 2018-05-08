@@ -1,5 +1,6 @@
 package com.hundsun.gapsv5.svn;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -13,16 +14,26 @@ import java.util.Map.Entry;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.NoHeadException;
+import org.eclipse.jgit.diff.DiffEntry;
+import org.eclipse.jgit.diff.DiffFormatter;
+import org.eclipse.jgit.diff.Edit;
+import org.eclipse.jgit.diff.EditList;
+import org.eclipse.jgit.diff.RawTextComparator;
 import org.eclipse.jgit.lib.MutableObjectId;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;
+import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.patch.FileHeader;
+import org.eclipse.jgit.patch.HunkHeader;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTag;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
+import org.eclipse.jgit.treewalk.AbstractTreeIterator;
+import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
 
 import com.hundsun.gapsv5.svn.bean.GitLogVersion;
@@ -178,12 +189,86 @@ public class GitOperationUtils {
 		revWalk.close();
 	}
 	
+	/**
+	 * 获取指定文件的最近两次提交对比结果
+	 * @param path
+	 * @throws IOException
+	 * @throws NoHeadException
+	 * @throws GitAPIException
+	 */
+	@SuppressWarnings("unchecked")
+	public void getDiffContent(String path) throws IOException, NoHeadException, GitAPIException{
+		Git git = Git.open(new File(openJGitCookBookRepository().getDirectory().getParent()+"/.git"));
+		Repository repository = git.getRepository();
+        List<RevCommit> commitList = new ArrayList<>();  
+        //获取最近提交的两次记录  
+        Iterable<RevCommit> commits = git.log().addPath(path).setMaxCount(2).call();
+        for(RevCommit commit:commits){ 
+        	commitList.add(commit);
+        }
+        if(commitList.size() == 2){
+        	AbstractTreeIterator newTreeParser = prepareTreeParser(commitList.get(0), repository);
+        	AbstractTreeIterator oldTreeParser = prepareTreeParser(commitList.get(1), repository);
+        	List<DiffEntry> diffs = git.diff().setOldTree(oldTreeParser).setNewTree(newTreeParser).setShowNameAndStatusOnly(true).call();
+        	
+        	ByteArrayOutputStream out = new ByteArrayOutputStream();
+        	DiffFormatter formatter = new DiffFormatter(out);
+        	 //设置比较器为忽略空白字符对比（Ignores all whitespace）  
+        	formatter.setDiffComparator(RawTextComparator.WS_IGNORE_ALL);  
+        	formatter.setRepository(git.getRepository()); 
+        	
+        	for(DiffEntry diffEntry : diffs){
+        		formatter.format(diffEntry);
+        		String diffText = out.toString("UTF-8");
+        		System.out.println(diffText);
+        		System.out.println("==============================================");
+        		
+        		//获取文件差异位置，从而统计差异的行数，如增加行数，减少行数  
+                FileHeader fileHeader = formatter.toFileHeader(diffEntry);  
+                List<HunkHeader> hunks = (List<HunkHeader>) fileHeader.getHunks();  
+                int addSize = 0;  
+                int subSize = 0;  
+                for(HunkHeader hunkHeader:hunks){  
+                    EditList editList = hunkHeader.toEditList();  
+                    for(Edit edit : editList){  
+                        subSize += edit.getEndA()-edit.getBeginA();  
+                        addSize += edit.getEndB()-edit.getBeginB();  
+                          
+                    }  
+                }  
+                System.out.println("addSize="+addSize);  
+                System.out.println("subSize="+subSize);  
+        	}
+        	formatter.close();
+        	out.reset();
+        }
+		
+	}
+	
+	/**
+	 * 获取解析树
+	 * @param commit
+	 * @param repository
+	 * @return
+	 */
+	public AbstractTreeIterator prepareTreeParser(RevCommit commit,Repository repository){
+		try (RevWalk walk = new RevWalk(repository)) {
+			RevTree tree = walk.parseTree(commit.getTree().getId());
+			CanonicalTreeParser treeParser = new CanonicalTreeParser();
+			ObjectReader reader = repository.newObjectReader();
+			treeParser.reset(reader, tree.getId());
+			walk.dispose();
+			return treeParser;
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
 	public String formatDate(Date date,String pattern){
 		SimpleDateFormat format = new SimpleDateFormat(pattern);
 		return format.format(date);
 	}
-	
-	
 	
 	public List<GitLogVersion> getLists() {
 		return lists;
@@ -192,19 +277,15 @@ public class GitOperationUtils {
 	public static void main(String[] args){
 		GitOperationUtils utils = new GitOperationUtils();
 		try {
-			System.out.println(utils.openJGitCookBookRepository().getDirectory().getParent());
-			System.out.println("=================================================================");
-			//String absolutePath = utils.createNewRepository().getDirectory().getAbsolutePath();
-			//System.out.println(absolutePath);
-			
+			//System.out.println(utils.openJGitCookBookRepository().getDirectory().getParent());
+			//System.out.println("=================================================================");
 			//utils.getLogInfo();
 			System.out.println("=================================================================");
 			//System.out.println(utils.getSpecifiedVersionFile("f07afa28aa7c5f534b69f32fda9434737783dd8c"));
 			utils.getSpecifiedFileVersionInfo("Demo/src/com/hundsun/gapsv5/svn/GitOperationUtils.java");
 			//utils.getRevTagInfo("c8c7669ec9b251cf3506ba08b50d4f555ce3e877");
 			System.out.println("=================================================================");
-			System.out.println("list's size is :"+utils.getLists().size());
-			
+			utils.getDiffContent("Demo/src/com/hundsun/gapsv5/svn/GitOperationUtils.java");
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (NoHeadException e) {
