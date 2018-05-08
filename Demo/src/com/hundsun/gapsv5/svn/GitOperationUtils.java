@@ -3,8 +3,10 @@ package com.hundsun.gapsv5.svn;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -23,7 +25,11 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.treewalk.TreeWalk;
 
+import com.hundsun.gapsv5.svn.bean.GitLogVersion;
+
 public class GitOperationUtils {
+	
+	private List<GitLogVersion> lists = new ArrayList<GitLogVersion>();
 	
 	public GitOperationUtils(){
 		
@@ -77,15 +83,24 @@ public class GitOperationUtils {
 	 * @throws GitAPIException
 	 */
 	public void getSpecifiedFileVersionInfo(String path) throws IOException, NoHeadException, GitAPIException{
-		Git git = Git.open(new File("C:/Users/Administrator/git/GapsDemo/.git"));
+		Git git = Git.open(new File(openJGitCookBookRepository().getDirectory().getParent()+"/.git"));
 		Iterable<RevCommit> gitLog = git.log().addPath(path).call();
 		for(RevCommit commit : gitLog){
 			String version = commit.getName();
 			String name = commit.getCommitterIdent().getName();
 			String emailAddress = commit.getCommitterIdent().getEmailAddress();
 			Date when = commit.getCommitterIdent().getWhen();
-			String fullMessage = commit.getFullMessage();
+			String fullMessage = commit.getFullMessage().replaceAll("\r|\n|\t", "");
 			System.out.println(version+"\t"+name+"\t"+emailAddress+"\t"+formatDate(when, "yyyy年MM月dd日 HH:mm:SS")+"\t"+fullMessage);
+			
+			GitLogVersion logVersion = new GitLogVersion();
+			logVersion.setId(version.substring(0, 7));
+			logVersion.setAuthor(commit.getAuthorIdent().getName());
+			logVersion.setAuthoredDate(formatDate(commit.getAuthorIdent().getWhen(), "yyyy年MM月dd日 HH:mm:SS"));
+			logVersion.setCommitter(name);
+			logVersion.setCommittedDate(formatDate(when, "yyyy年MM月dd日 HH:mm:SS"));
+			logVersion.setMessage(fullMessage);
+			lists.add(logVersion);
 		}
 	}
 	
@@ -170,6 +185,10 @@ public class GitOperationUtils {
 	
 	
 	
+	public List<GitLogVersion> getLists() {
+		return lists;
+	}
+
 	public static void main(String[] args){
 		GitOperationUtils utils = new GitOperationUtils();
 		try {
@@ -178,12 +197,13 @@ public class GitOperationUtils {
 			//String absolutePath = utils.createNewRepository().getDirectory().getAbsolutePath();
 			//System.out.println(absolutePath);
 			
-			utils.getLogInfo();
+			//utils.getLogInfo();
 			System.out.println("=================================================================");
 			//System.out.println(utils.getSpecifiedVersionFile("f07afa28aa7c5f534b69f32fda9434737783dd8c"));
-			//utils.getSpecifiedFileVersionInfo("gaps.demo/src/main/resources/metadatas/basetable.table");
-			utils.getRevTagInfo("c8c7669ec9b251cf3506ba08b50d4f555ce3e877");
+			utils.getSpecifiedFileVersionInfo("Demo/src/com/hundsun/gapsv5/svn/GitOperationUtils.java");
+			//utils.getRevTagInfo("c8c7669ec9b251cf3506ba08b50d4f555ce3e877");
 			System.out.println("=================================================================");
+			System.out.println("list's size is :"+utils.getLists().size());
 			
 		} catch (IOException e) {
 			e.printStackTrace();
