@@ -276,15 +276,15 @@ public class SVNUtil {
 	public static void main(String[] args) throws SVNException {
 		String url1 = "https://192.168.57.56/bank/depthree/gapsv5/trunk/Sources/temp/gaps.demo/src/main/resources/basetable.table";
 		String url2 = "https://192.168.57.56/bank/depthree/gapsv5/trunk/Sources/temp/gaps.demo";
-		SVNUtil svnUtil = new SVNUtil("wangwb17660", "WANGWB@hx0901");
+		SVNUtil svnUtil = new SVNUtil("username", "password");
 		
 		//get(svnUtil,url);
 		
 		//getFileList(svnUtil, url);
 		
-		//svnUtil.getVersionList(url2);
+		svnUtil.getVersionList(url2);
 		
-		//svnUtil.getFileByVersion(url1, "852");
+		svnUtil.getFileByVersion(url1, "852");
 		
 		DefaultSVNOptions options = new DefaultSVNOptions();
 		options.setAuthStorageEnabled(false);
