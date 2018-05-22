@@ -42,8 +42,16 @@ public class GitOperationUtils {
 	
 	private List<GitLogVersion> lists = new ArrayList<GitLogVersion>();
 	
+	private Git git;
+	
+	private Repository repository;
+	
 	public GitOperationUtils(){
-		
+	}
+	
+	public void initRepository() throws IOException{
+		git = Git.open(new File(openJGitCookBookRepository().getDirectory().getParent()+"/.git"));
+		repository = git.getRepository();
 	}
 	
 	public Repository openJGitCookBookRepository() throws IOException{
@@ -74,14 +82,13 @@ public class GitOperationUtils {
 	 * @throws GitAPIException
 	 */
 	public void getLogInfo() throws IOException, NoHeadException, GitAPIException{
-		Git git = Git.open(new File(openJGitCookBookRepository().getDirectory().getParent()+"/.git"));
 		Iterable<RevCommit> gitLog = git.log().call();
 		for(RevCommit commit : gitLog){
 			String version = commit.getName();
 			String name = commit.getCommitterIdent().getName();
 			String emailAddress = commit.getCommitterIdent().getEmailAddress();
 			Date when = commit.getCommitterIdent().getWhen();
-			String fullMessage = commit.getFullMessage();
+			String fullMessage = commit.getFullMessage().replaceAll("\r|\n|\t", "");;
 			System.out.println(version+"\t"+name+"\t"+emailAddress+"\t"+formatDate(when, "yyyy年MM月dd日 HH:mm:ss")+"\t"+fullMessage);
 		}
 	}
@@ -94,7 +101,6 @@ public class GitOperationUtils {
 	 * @throws GitAPIException
 	 */
 	public void getSpecifiedFileVersionInfo(String path) throws IOException, NoHeadException, GitAPIException{
-		Git git = Git.open(new File(openJGitCookBookRepository().getDirectory().getParent()+"/.git"));
 		Iterable<RevCommit> gitLog = git.log().addPath(path).call();
 		for(RevCommit commit : gitLog){
 			String version = commit.getName();
@@ -123,8 +129,6 @@ public class GitOperationUtils {
 	 */
 	public String getSpecifiedVersionFile(String version,String path) throws IOException{
 		//default repository folder
-		Git git = Git.open(new File(openJGitCookBookRepository().getDirectory().getParent()+"/.git"));
-		Repository repository = git.getRepository();
 		RevWalk revWalk = new RevWalk(repository);
 		
 		ObjectId objectId = repository.resolve(version);
@@ -145,8 +149,6 @@ public class GitOperationUtils {
 	 * @throws IOException
 	 */
 	public String getAllVersionFileContent(RevCommit parseCommit) throws IOException{
-		Git git = Git.open(new File(openJGitCookBookRepository().getDirectory().getParent()+"/.git"));
-		Repository repository = git.getRepository();
 		String str = "";
 		TreeWalk treeWalk = new TreeWalk(repository);
 		treeWalk.addTree(parseCommit.getTree());
@@ -164,28 +166,61 @@ public class GitOperationUtils {
 	}
 	
 	/**
-	 * 获取标签信息
-	 * @param version
+	 *  获取标签信息(只针对含附注的标签)
+	 * @return 所有的含附注的标签集合
 	 * @throws IOException
 	 */
-	public void getRevTagInfo(String version) throws IOException{
-		Git git = Git.open(new File(openJGitCookBookRepository().getDirectory().getParent()+"/.git"));
-		Repository repository = git.getRepository();
-		Map<String, Ref> tags = repository.getTags();
+	public List<RevTag> getRevTags() throws IOException{
+		List<RevTag> tags = new ArrayList<RevTag>();
+		repository = git.getRepository();
+		Map<String, Ref> tagMap = repository.getTags();
 		RevWalk revWalk = new RevWalk(repository);
-		Iterator<Entry<String, Ref>> iterator = tags.entrySet().iterator();
+		Iterator<Entry<String, Ref>> iterator = tagMap.entrySet().iterator();
 		while(iterator.hasNext()){
 			Entry<String, Ref> next = iterator.next();
 			Ref ref = next.getValue();
 			ObjectId objectId = ref.getObjectId();
 			RevTag parseTag = revWalk.parseTag(objectId);
-			System.out.println(parseTag.getId());
-			System.out.println(parseTag.getName());
-			System.out.println(parseTag.getTagName());
-			System.out.println(parseTag.getFullMessage());
-			System.out.println(parseTag.getShortMessage());
+			tags.add(parseTag);
 		}
 		revWalk.close();
+		return tags;
+	}
+	
+	/**
+	 * 获取指定标签版本号(TagName)的标签对象
+	 * @param version
+	 * @return 指定TagName的标签对象
+	 * @throws IOException
+	 */
+	public RevTag getTagInfo(String version) throws IOException{
+		Map<String, Ref> tagMap = repository.getTags();
+		RevWalk revWalk = new RevWalk(repository);
+		Ref ref = tagMap.get(version);
+		ObjectId objectId = ref.getObjectId();
+		RevTag parseTag = revWalk.parseTag(objectId);
+		
+		revWalk.close();
+		return parseTag;
+	}
+	
+	/**
+	 * 根据指定路径获取标签号下的文件内容
+	 * @param filePath
+	 * @param objectId
+	 * @return  指定文件的内容字符串
+	 * @throws IOException
+	 */
+	public String getTagFileContent(String filePath,ObjectId objectId) throws IOException{
+		RevWalk revWalk = new RevWalk(repository);
+		RevCommit parseCommit = revWalk.parseCommit(objectId);
+		RevTree tree = parseCommit.getTree();
+		TreeWalk treeWalk = TreeWalk.forPath(repository, filePath, tree);
+		ObjectId blobId = treeWalk.getObjectId(0);
+		ObjectLoader open = repository.open(blobId);
+		
+		revWalk.close();
+		return new String(open.getBytes(),"UTF-8");
 	}
 	
 	/**
@@ -197,8 +232,6 @@ public class GitOperationUtils {
 	 */
 	@SuppressWarnings("unchecked")
 	public void getDiffContent(String path) throws IOException, NoHeadException, GitAPIException{
-		Git git = Git.open(new File(openJGitCookBookRepository().getDirectory().getParent()+"/.git"));
-		Repository repository = git.getRepository();
         List<RevCommit> commitList = new ArrayList<>();  
         //获取最近提交的两次记录  
         Iterable<RevCommit> commits = git.log().addPath(path).setMaxCount(2).call();
@@ -273,18 +306,22 @@ public class GitOperationUtils {
 
 	public static void main(String[] args){
 		GitOperationUtils utils = new GitOperationUtils();
-		String path = "gaps.demo/src/main/resources/metadatas/basetable.table";
-		//String path = "Demo/src/com/hundsun/gapsv5/svn/GitOperationUtils.java";
+		//String path = "gaps.demo/src/main/resources/metadatas/basetable.table";
+		String path = "Demo/src/com/hundsun/gapsv5/svn/GitOperationUtils.java";
 		try {
-			//System.out.println(utils.openJGitCookBookRepository().getDirectory().getParent());
-			//System.out.println("=================================================================");
+			utils.initRepository();
+			
 			utils.getLogInfo();
 			System.out.println("=================================================================");
-			//System.out.println(utils.getSpecifiedVersionFile("b5dafa6297a9efe0fd2296d6ed2045abd3f111da",path));
-			utils.getSpecifiedFileVersionInfo(path);
-			//utils.getRevTagInfo("c8c7669ec9b251cf3506ba08b50d4f555ce3e877");
+			//utils.getSpecifiedFileVersionInfo(path);
+			System.out.println(utils.getTagFileContent(path, utils.getTagInfo("v1.0.0").getObject()));
 			System.out.println("=================================================================");
-			//utils.getDiffContent("Demo/src/com/hundsun/gapsv5/svn/GitOperationUtils.java");
+			utils.getRevTags();
+			RevTag parseTag = utils.getTagInfo("v1.0.0");
+			System.out.println(parseTag.getTagName()+"\t"+parseTag.getTaggerIdent().getName()
+					+"\t"+parseTag.getTaggerIdent().getEmailAddress()
+					+"\t"+utils.formatDate(parseTag.getTaggerIdent().getWhen(), "yyyy年MM月dd日  HH:mm:ss")
+					+"\t"+parseTag.getFullMessage().replaceAll("\r|\n|\t", ""));
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (NoHeadException e) {
