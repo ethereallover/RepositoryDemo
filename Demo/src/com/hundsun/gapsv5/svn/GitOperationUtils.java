@@ -82,7 +82,7 @@ public class GitOperationUtils {
 			String emailAddress = commit.getCommitterIdent().getEmailAddress();
 			Date when = commit.getCommitterIdent().getWhen();
 			String fullMessage = commit.getFullMessage();
-			System.out.println(version+"\t"+name+"\t"+emailAddress+"\t"+formatDate(when, "yyyy年MM月dd日 HH:mm:SS")+"\t"+fullMessage);
+			System.out.println(version+"\t"+name+"\t"+emailAddress+"\t"+formatDate(when, "yyyy年MM月dd日 HH:mm:ss")+"\t"+fullMessage);
 		}
 	}
 	
@@ -102,14 +102,14 @@ public class GitOperationUtils {
 			String emailAddress = commit.getCommitterIdent().getEmailAddress();
 			Date when = commit.getCommitterIdent().getWhen();
 			String fullMessage = commit.getFullMessage().replaceAll("\r|\n|\t", "");
-			System.out.println(version+"\t"+name+"\t"+emailAddress+"\t"+formatDate(when, "yyyy年MM月dd日 HH:mm:SS")+"\t"+fullMessage);
+			System.out.println(version+"\t"+name+"\t"+emailAddress+"\t"+formatDate(when, "yyyy年MM月dd日 HH:mm:ss")+"\t"+fullMessage);
 			
 			GitLogVersion logVersion = new GitLogVersion();
 			logVersion.setId(version.substring(0, 7));
 			logVersion.setAuthor(commit.getAuthorIdent().getName());
-			logVersion.setAuthoredDate(formatDate(commit.getAuthorIdent().getWhen(), "yyyy年MM月dd日 HH:mm:SS"));
+			logVersion.setAuthoredDate(formatDate(commit.getAuthorIdent().getWhen(), "yyyy年MM月dd日 HH:mm:ss"));
 			logVersion.setCommitter(name);
-			logVersion.setCommittedDate(formatDate(when, "yyyy年MM月dd日 HH:mm:SS"));
+			logVersion.setCommittedDate(formatDate(when, "yyyy年MM月dd日 HH:mm:ss"));
 			logVersion.setMessage(fullMessage);
 			lists.add(logVersion);
 		}
@@ -121,9 +121,9 @@ public class GitOperationUtils {
 	 * @return
 	 * @throws IOException
 	 */
-	public String getSpecifiedVersionFile(String version) throws IOException{
+	public String getSpecifiedVersionFile(String version,String path) throws IOException{
 		//default repository folder
-		Git git = Git.open(new File("C:/Users/Administrator/git/GapsDemo/.git"));
+		Git git = Git.open(new File(openJGitCookBookRepository().getDirectory().getParent()+"/.git"));
 		Repository repository = git.getRepository();
 		RevWalk revWalk = new RevWalk(repository);
 		
@@ -131,7 +131,6 @@ public class GitOperationUtils {
 		RevCommit parseCommit = revWalk.parseCommit(objectId);
 		RevTree tree = parseCommit.getTree();
 		
-		String path = "gaps.demo/src/main/resources/metadatas/basetable.table";
 		TreeWalk treeWalk = TreeWalk.forPath(repository, path, tree);
 		ObjectId blobId = treeWalk.getObjectId(0);
 		ObjectLoader open = repository.open(blobId);
@@ -146,7 +145,7 @@ public class GitOperationUtils {
 	 * @throws IOException
 	 */
 	public String getAllVersionFileContent(RevCommit parseCommit) throws IOException{
-		Git git = Git.open(new File("C:/Users/Administrator/git/GapsDemo/.git"));
+		Git git = Git.open(new File(openJGitCookBookRepository().getDirectory().getParent()+"/.git"));
 		Repository repository = git.getRepository();
 		String str = "";
 		TreeWalk treeWalk = new TreeWalk(repository);
@@ -213,7 +212,7 @@ public class GitOperationUtils {
         	
         	ByteArrayOutputStream out = new ByteArrayOutputStream();
         	DiffFormatter formatter = new DiffFormatter(out);
-        	 //设置比较器为忽略空白字符对比（Ignores all whitespace）  
+        	 //设置比较器为忽略空白字符对比(Ignores all whitespace)
         	formatter.setDiffComparator(RawTextComparator.WS_IGNORE_ALL);  
         	formatter.setRepository(git.getRepository()); 
         	
@@ -221,7 +220,6 @@ public class GitOperationUtils {
         		formatter.format(diffEntry);
         		String diffText = out.toString("UTF-8");
         		System.out.println(diffText);
-        		System.out.println("==============================================");
         		
         		//获取文件差异位置，从而统计差异的行数，如增加行数，减少行数  
                 FileHeader fileHeader = formatter.toFileHeader(diffEntry);  
@@ -233,7 +231,6 @@ public class GitOperationUtils {
                     for(Edit edit : editList){  
                         subSize += edit.getEndA()-edit.getBeginA();  
                         addSize += edit.getEndB()-edit.getBeginB();  
-                          
                     }  
                 }  
                 System.out.println("addSize="+addSize);  
@@ -276,16 +273,18 @@ public class GitOperationUtils {
 
 	public static void main(String[] args){
 		GitOperationUtils utils = new GitOperationUtils();
+		String path = "gaps.demo/src/main/resources/metadatas/basetable.table";
+		//String path = "Demo/src/com/hundsun/gapsv5/svn/GitOperationUtils.java";
 		try {
 			//System.out.println(utils.openJGitCookBookRepository().getDirectory().getParent());
 			//System.out.println("=================================================================");
-			//utils.getLogInfo();
+			utils.getLogInfo();
 			System.out.println("=================================================================");
-			//System.out.println(utils.getSpecifiedVersionFile("f07afa28aa7c5f534b69f32fda9434737783dd8c"));
-			utils.getSpecifiedFileVersionInfo("Demo/src/com/hundsun/gapsv5/svn/GitOperationUtils.java");
+			//System.out.println(utils.getSpecifiedVersionFile("b5dafa6297a9efe0fd2296d6ed2045abd3f111da",path));
+			utils.getSpecifiedFileVersionInfo(path);
 			//utils.getRevTagInfo("c8c7669ec9b251cf3506ba08b50d4f555ce3e877");
 			System.out.println("=================================================================");
-			utils.getDiffContent("Demo/src/com/hundsun/gapsv5/svn/GitOperationUtils.java");
+			//utils.getDiffContent("Demo/src/com/hundsun/gapsv5/svn/GitOperationUtils.java");
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (NoHeadException e) {
