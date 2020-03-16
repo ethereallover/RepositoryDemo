@@ -311,13 +311,13 @@ public class GitOperationUtils {
 		try {
 			utils.initRepository();
 			
-			utils.getLogInfo();
+			//utils.getLogInfo();
 			System.out.println("=================================================================");
-			//utils.getSpecifiedFileVersionInfo(path);
-			System.out.println(utils.getTagFileContent(path, utils.getTagInfo("v1.0.0").getObject()));
+			utils.getSpecifiedFileVersionInfo(path);
+			//System.out.println(utils.getTagFileContent(path, utils.getTagInfo("v1.0.1").getObject()));
 			System.out.println("=================================================================");
-			utils.getRevTags();
-			RevTag parseTag = utils.getTagInfo("v1.0.0");
+			//utils.getRevTags();
+			RevTag parseTag = utils.getTagInfo("v1.0.1");
 			System.out.println(parseTag.getTagName()+"\t"+parseTag.getTaggerIdent().getName()
 					+"\t"+parseTag.getTaggerIdent().getEmailAddress()
 					+"\t"+utils.formatDate(parseTag.getTaggerIdent().getWhen(), "yyyy年MM月dd日  HH:mm:ss")
